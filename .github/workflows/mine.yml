@@ -1,0 +1,64 @@
+# GitHub에서 버튼 하나로 불만 채굴기를 돌린다 (PC 없이 휴대폰으로도 가능).
+# Actions 탭 → "불만 채굴" → Run workflow → 앱 ID 입력.
+name: 불만 채굴
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "보고서 제목 (예: 가계부 앱 시장)"
+        required: true
+      play:
+        description: "구글 플레이 앱 ID, 쉼표로 여러 개 (예: com.a.app,com.b.app)"
+        required: false
+        default: ""
+      appstore:
+        description: "앱스토어 앱 ID 숫자, 쉼표로 여러 개"
+        required: false
+        default: ""
+      count:
+        description: "구글 플레이 앱당 리뷰 수"
+        required: false
+        default: "2000"
+
+permissions:
+  contents: write
+
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 분석
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          IN_NAME: ${{ inputs.name }}
+          IN_PLAY: ${{ inputs.play }}
+          IN_APPSTORE: ${{ inputs.appstore }}
+          IN_COUNT: ${{ inputs.count }}
+        run: |
+          args=()
+          IFS=',' read -ra P <<< "$IN_PLAY";     for x in "${P[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--play "$x"); done
+          IFS=',' read -ra A <<< "$IN_APPSTORE"; for x in "${A[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--appstore "$x"); done
+          stamp="$(date -u +%Y%m%d-%H%M)"
+          echo "OUT=reports/$stamp.html" >> "$GITHUB_ENV"
+          python -m miner run "${args[@]}" --name "$IN_NAME" --count "$IN_COUNT" --out "reports/$stamp.html"
+      - name: 보고서 저장 (저장소의 reports 폴더)
+        env:
+          IN_NAME: ${{ inputs.name }}
+        run: |
+          git config user.name "complaint-miner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add reports
+          git commit -m "보고서: $IN_NAME" || echo "변경 없음"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: reports/

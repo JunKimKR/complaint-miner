@@ -1,0 +1,6 @@
+google-play-scraper>=1.2.7
+kiwipiepy>=0.20
+scikit-learn>=1.5
+numpy>=1.26
+anthropic>=2.3
+pytest>=8
