@@ -61,6 +61,22 @@ def _pick_k(X: np.ndarray, n: int, k_min: int, k_max: int, seed: int) -> int:
     return min(k for k, s in scores.items() if s >= 0.9 * best)
 
 
+def _split_big(X: np.ndarray, labels: np.ndarray, n: int, seed: int, max_share: float = 0.25) -> np.ndarray:
+    """전체의 25%가 넘는 '잡동사니' 주제는 한 번 더 잘게 나눈다. 큰 묶음은 보통 여러 불만이 섞인 것이다."""
+    labels = labels.copy()
+    next_id = int(labels.max()) + 1
+    for c in range(int(labels.max()) + 1):
+        idx = np.where(labels == c)[0]
+        if len(idx) < 60 or len(idx) / n <= max_share:
+            continue
+        sub_k = _pick_k(X[idx], len(idx), 2, 6, seed)
+        sub = KMeans(n_clusters=sub_k, n_init=10, random_state=seed).fit_predict(X[idx])
+        for j in range(1, sub_k):
+            labels[idx[sub == j]] = next_id
+            next_id += 1
+    return labels
+
+
 def find_themes(reviews: list[Review], k: int | None = None, k_min: int = 4, k_max: int = 12,
                 seed: int = 42) -> list[Theme]:
     if len(reviews) < 20:
@@ -74,8 +90,13 @@ def find_themes(reviews: list[Review], k: int | None = None, k_min: int = 4, k_m
     X = Normalizer(copy=False).fit_transform(TruncatedSVD(dims, random_state=seed).fit_transform(tfidf))
 
     k = k or _pick_k(X, len(texts), k_min, k_max, seed)
-    km = KMeans(n_clusters=k, n_init=10, random_state=seed).fit(X)
-    labels = km.labels_
+    labels = KMeans(n_clusters=k, n_init=10, random_state=seed).fit_predict(X)
+    for _ in range(3):                       # 큰 잡동사니 주제가 남지 않을 때까지 최대 3번
+        new = _split_big(X, labels, len(texts), seed)
+        if (new == labels).all():
+            break
+        labels = new
+    k = int(labels.max()) + 1
 
     vocab = np.array(vec.get_feature_names_out())
     overall = np.asarray(tfidf.mean(axis=0)).ravel()
@@ -94,7 +115,7 @@ def find_themes(reviews: list[Review], k: int | None = None, k_min: int = 4, k_m
         lift = np.asarray(tfidf[idx].mean(axis=0)).ravel() - overall
         kw = [vocab[i] for i in np.argsort(-lift)[:10] if lift[i] > 0]
         # 대표 리뷰: 중심에 가깝고 너무 짧지 않은 것
-        d = np.linalg.norm(X[idx] - km.cluster_centers_[c], axis=1)
+        d = np.linalg.norm(X[idx] - X[idx].mean(axis=0), axis=1)
         order = [idx[i] for i in np.argsort(d)]
         samples, seen = [], set()
         for i in order:
