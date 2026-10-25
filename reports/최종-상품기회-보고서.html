@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상품 기회 보고서</title>
+<style>
+:root{--bg:#f6f7f9;--paper:#fff;--ink:#141a22;--muted:#5d6675;--line:#e1e5eb;--accent:#e4572e;--soft:#fdeee8;--good:#1f8a5b;--goodbg:#e7f5ee;--warn:#b7791f;--warnbg:#fdf3e1;--bar:#2a78d6}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--paper:#161b22;--ink:#e6ebf2;--muted:#97a1b0;--line:#2a313c;--accent:#ff7a52;--soft:#2b1a14;--good:#4cc38a;--goodbg:#13261c;--warn:#e3a84a;--warnbg:#2a2113;--bar:#3987e5}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16.5px/1.75 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px}header{padding:36px 0 10px}h1{font-size:30px;line-height:1.3;margin:0 0 6px;letter-spacing:-.5px}
+.meta{color:var(--muted);font-size:14px}h2{font-size:22px;margin:40px 0 10px;padding-top:10px;border-top:2px solid var(--ink)}h3{font-size:18px;margin:22px 0 6px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px 20px;margin:14px 0}
+.verdict{background:var(--ink);color:var(--bg);border-radius:18px;padding:20px 22px;margin:18px 0}
+.verdict h2{border:0;margin:0 0 6px;padding:0;color:var(--bg);font-size:20px}.verdict .big{font-size:24px;font-weight:800;line-height:1.4;margin:4px 0 10px}
+.verdict ul{margin:0;padding-left:20px}
+.good{background:var(--goodbg);border-left:5px solid var(--good);border-radius:4px 12px 12px 4px;padding:12px 16px;margin:14px 0}
+.warn{background:var(--warnbg);border-left:5px solid var(--warn);border-radius:4px 12px 12px 4px;padding:12px 16px;margin:14px 0}
+table{width:100%;border-collapse:collapse;font-size:15px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:13px}
+.tw{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:4px 8px}
+.bars{margin:10px 0}.row{display:grid;grid-template-columns:150px 1fr 48px;gap:10px;align-items:center;margin:8px 0;font-size:14.5px}
+.track{height:14px;background:var(--bg);border-radius:7px;overflow:hidden}.fill{height:100%;background:var(--bar);border-radius:7px}.fill.hot{background:var(--accent)}
+.row b{text-align:right}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid var(--line);background:var(--bg);border-radius:0 8px 8px 0;font-size:14.5px}
+blockquote small{color:var(--muted)}ol.steps li{margin:10px 0}.tag{display:inline-block;font-size:12.5px;font-weight:700;padding:1px 8px;border-radius:999px;margin-right:4px}
+.t-ok{background:var(--goodbg);color:var(--good)}.t-no{background:var(--soft);color:var(--accent)}.t-mid{background:var(--warnbg);color:var(--warn)}
+.src{font-size:13px;color:var(--muted)}.src a{word-break:break-all}
+@media(max-width:560px){.row{grid-template-columns:110px 1fr 42px}}
+</style>
+</head>
+<body><div class="wrap">
+<header>
+  <h1>무엇을 만들어 팔까: 리뷰 720만 개로 찾은 상품 기회</h1>
+  <p class="meta">아마존 공개 리뷰 데이터(2023년까지) 뷰티 70만·건강 49만·유아 603만 개 분석 + 2026년 10월 웹 조사 · 2026-10-25 작성</p>
+</header>
+
+<div class="verdict">
+  <h2>결론</h2>
+  <p class="big">추천 상품: "안 마르는 마그네틱(자석 속눈썹용) 아이라이너"</p>
+  <ul>
+    <li>자석 속눈썹 불만의 <b>1위가 "라이너가 말라서 못 쓴다"</b>입니다. 속눈썹이 아니라 <b>라이너 제형과 용기</b>의 문제예요.</li>
+    <li>이 불만은 <b>2019~2020년 8% → 2021년 34% → 2022년 42%</b>로 계속 커졌습니다.</li>
+    <li>제형과 용기는 <b>한국 화장품 ODM이 가장 잘하는 분야</b>이고, 판매가는 $11~33로 진입하기 쉬운 가격대입니다.</li>
+    <li>단, <b>미국 규제(MoCRA)에서 눈가 제품은 소기업 면제가 안 되고</b>, 큰 경쟁사(Glamnetic)가 이미 제형을 바꿨습니다. 그래서 <b>한국 시장에서 먼저 싸게 검증</b>하는 순서를 추천합니다.</li>
+  </ul>
+</div>
+
+<h2>1. 어떻게 찾았나</h2>
+<div class="card">
+<ol>
+  <li>분야는 <b>한국에서 OEM/ODM으로 만들 수 있는 것</b>을 기준으로 뷰티, 건강·생활, 유아용품 3개를 골랐습니다.</li>
+  <li>아마존 공개 리뷰 <b>720만 개</b>를 상품 종류별로 묶고, 별점 1~2점 비율 × 시장 크기 × 공감 수 × 최근 추세로 순위를 매겼습니다. (직접 만든 '불만 채굴기' 프로그램)</li>
+  <li>상위 상품 종류마다 불만을 주제별로 묶고, 제가 대표 리뷰를 직접 읽었습니다.</li>
+  <li>배송·포장·판매자 불만은 상품을 바꿔도 해결되지 않으므로 점수를 깎았습니다.</li>
+  <li>2026년 현재 시장, 경쟁사, ODM, 미국 규제를 웹에서 다시 확인했습니다.</li>
+</ol>
+</div>
+
+<h2>2. 세 분야 비교: 왜 뷰티인가</h2>
+<div class="tw"><table>
+<tr><th>분야</th><th>불만 상위 상품</th><th>불만의 성격</th><th>판단</th></tr>
+<tr><td><b>뷰티</b></td><td>자석 속눈썹·라이너, 오일 컨트롤, 딥클렌징 마스크, 방수 아이브로우</td><td>제형·용기 문제(라이너가 마름, 안 붙음) / 과장광고 문제</td><td><span class="tag t-ok">추천</span> 제형 문제는 ODM으로 고칠 수 있음</td></tr>
+<tr><td><b>건강·생활</b></td><td>찜질 패드, 전동칫솔, 고데기, 충전식 소형 기기</td><td>고장, 충전 불량, <b>발화</b> 같은 전자기기 내구성·안전 문제</td><td><span class="tag t-mid">보류</span> 전자 안전 인증과 제조물 책임 부담이 큼</td></tr>
+<tr><td><b>유아</b></td><td>체온계, 베이비 모니터, 차량용 거울</td><td>체온계 <b>부정확</b>, 와이파이 끊김, 화질</td><td><span class="tag t-no">비추천</span> 체온계는 의료기기라 규제가 매우 무거움</td></tr>
+</table></div>
+<div class="warn"><b>뷰티 안에서도 뺀 것:</b> '오일 컨트롤', '딥클렌징 마스크'는 불만 비율이 48~55%로 가장 높았습니다. 하지만 불만의 대부분이 <b>"페이스북 광고·영상과 다르다", "사기다"</b>였어요. 과장광고가 시장을 끌고 가는 곳이라, 좋은 제품을 만들어도 광고 경쟁에서 이기기 어렵다고 판단했습니다.</div>
+
+<h2>3. 근거: 자석 속눈썹 불만 1,694개를 직접 셌습니다</h2>
+<div class="card">
+<p>자석 속눈썹·속눈썹 키트의 별점 1~2점 리뷰(중복 제거 1,694개)에서 불만 유형을 셌습니다. 한 리뷰에 여러 불만이 있을 수 있습니다.</p>
+<div class="bars">
+  <div class="row"><span>라이너가 말라 있음</span><div class="track"><div class="fill hot" style="width:100%"></div></div><b>22%</b></div>
+  <div class="row"><span>금방 떨어짐</span><div class="track"><div class="fill" style="width:64%"></div></div><b>14%</b></div>
+  <div class="row"><span>조잡한 품질</span><div class="track"><div class="fill" style="width:32%"></div></div><b>7%</b></div>
+  <div class="row"><span>부자연스러운 모양</span><div class="track"><div class="fill" style="width:32%"></div></div><b>7%</b></div>
+  <div class="row"><span>바르기 어려움</span><div class="track"><div class="fill" style="width:27%"></div></div><b>6%</b></div>
+  <div class="row"><span>눈 자극</span><div class="track"><div class="fill" style="width:14%"></div></div><b>3%</b></div>
+  <div class="row"><span>번짐</span><div class="track"><div class="fill" style="width:14%"></div></div><b>3%</b></div>
+</div>
+<p class="src">"말라 있음"은 엄격한 기준(라이너·접착제·튜브라는 말과 함께 dried/clumped 등이 나온 경우)으로 센 값입니다. 느슨하게 세면 32%까지 올라갑니다.</p>
+</div>
+
+<h3>그리고 이 불만은 해마다 커졌습니다</h3>
+<div class="card">
+<div class="bars">
+  <div class="row"><span>2019년</span><div class="track"><div class="fill" style="width:19%"></div></div><b>8%</b></div>
+  <div class="row"><span>2020년</span><div class="track"><div class="fill" style="width:19%"></div></div><b>8%</b></div>
+  <div class="row"><span>2021년</span><div class="track"><div class="fill hot" style="width:81%"></div></div><b>34%</b></div>
+  <div class="row"><span>2022년</span><div class="track"><div class="fill hot" style="width:100%"></div></div><b>42%</b></div>
+</div>
+<p class="src">해당 연도 불만 리뷰 중 "라이너가 말라 있음" 비율. 2023년은 리뷰가 13개뿐이라 뺐습니다. 시장이 커지면서 싼 제품이 쏟아진 결과로 보입니다(추정).</p>
+</div>
+
+<h3>실제 리뷰</h3>
+<blockquote>"첫 번째 세트의 접착제가 말라 있어서 교환했어요. 두 번째도 똑같아서 그냥 포기했습니다."<br><small>Dry adhesive. The first set I bought had dry adhesive so I exchanged for a second set…</small></blockquote>
+<blockquote>"뜯자마자 쓰려고 했는데 아이라이너 튜브가 완전히 말라 있었어요."<br><small>Dried out - couldn't even use it…</small></blockquote>
+<blockquote>"라이너를 적게 바르든 많이 바르든, 속눈썹을 붙이고 5~10분 뒤면 힘을 잃어요."<br><small>…once the lashes are on about 5-10 minutes later they lose their grip.</small></blockquote>
+
+<h2>4. 상품 콘셉트</h2>
+<div class="good">
+<p><b>"마지막 한 번까지 안 마르는 자석 라이너"</b></p>
+<ul>
+  <li><b>용기</b>: 공기가 덜 들어가는 에어리스 펜이나 밀폐형 용기. 라이너가 마르는 주원인은 뚜껑으로 공기가 들어가 용매가 날아가는 것이라는 설명이 많습니다. 소량 1회분 앰플형도 ODM에 가능한지 물어볼 만합니다.</li>
+  <li><b>제형</b>: 보습 성분으로 덜 마르면서 자력은 유지하는 제형. ODM 연구소에 요청할 부분입니다.</li>
+  <li><b>증명할 숫자</b>: "개봉 후 90일 사용 테스트", "8시간 유지 테스트"처럼 리뷰 불만을 정면으로 반박하는 시험 결과. 한국 ODM은 안과 테스트 같은 시험 대행에 익숙합니다.</li>
+  <li><b>가격</b>: 라이너 단품 $12~18, 속눈썹 세트 $25~33 (현재 시장 가격대)</li>
+</ul>
+</div>
+
+<h2>5. 위험 요소 (꼭 읽기)</h2>
+<div class="warn">
+<ol>
+  <li><b>데이터가 2023년까지입니다.</b> 지금도 같은 불만이 많은지 현재 아마존 상위 제품 리뷰로 다시 확인해야 합니다(아래 1단계).</li>
+  <li><b>경쟁사가 이미 움직였습니다.</b> 대표 브랜드 Glamnetic은 자사 사이트에서 펠트팁 용기와 새 제형으로 바꿨다고 홍보합니다. "안 마름"만으로는 부족할 수 있고, 시험 결과 같은 <b>증거</b>가 차별점이 돼야 합니다.</li>
+  <li><b>미국 규제 부담.</b> 미국 화장품법(MoCRA)상 판매자는 제품 등록, 안전성 근거 보관, 부작용 보고 의무가 있고, 공장도 FDA 등록이 필요합니다. 조사한 자료에 따르면 <b>눈가 제품은 소기업 면제에서 빠집니다.</b> 정확한 기준은 FDA 원문 확인이 필요합니다.</li>
+  <li><b>눈 자극 위험.</b> 불만의 3%가 따가움·알레르기였습니다. 눈가 제품은 사고가 나면 브랜드에 치명적이라 안전성 시험을 아끼면 안 됩니다.</li>
+  <li><b>불만이 크다고 돈을 내는 건 아닙니다.</b> 아래 검증 단계를 건너뛰지 마세요.</li>
+</ol>
+</div>
+
+<h2>6. 다음 단계 (싼 것부터)</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>현재 시장 재확인 (무료, 1~2일)</b>: 아마존과 쿠팡의 자석 라이너 상위 10~20개 상품에서 최근 1~2점 리뷰를 브라우저 확장프로그램으로 저장한 뒤, 불만 채굴기에 넣어 "말라 있음" 비율이 지금도 높은지 확인합니다.</li>
+  <li><b>ODM 견적 3곳 (무료)</b>: 색조 강점이 있는 곳(씨앤씨인터내셔널 등), 소량을 받아주는 대형사(코스맥스는 3,000개 이하 소량 주문도 받는다는 보도가 있음), 중소 ODM(MOQ 1,000개부터인 곳도 있음)에 "에어리스 용기 + 안 마르는 자석 라이너" 가능 여부, MOQ, 단가, 개발 기간을 묻습니다.</li>
+  <li><b>가짜 문 테스트 (10~20만 원)</b>: 제품 소개 페이지와 사전 신청 버튼을 만들고 인스타그램 광고를 소액 돌려, 방문자 대비 신청 비율을 봅니다. 이 단계에서 반응이 없으면 멈추면 됩니다.</li>
+  <li><b>한국에서 먼저 소량 판매 (MOQ 1,000~3,000개)</b>: 쿠팡과 스마트스토어에서 자석 속눈썹이 1~2만 원대에 팔리고 있습니다. 미국보다 규제 부담이 작은 한국에서 리뷰와 재구매를 먼저 확인합니다.</li>
+  <li><b>반응이 좋으면 미국 아마존</b>: MoCRA 등록과 라벨 요건을 갖춘 뒤 진출합니다.</li>
+</ol>
+</div>
+
+<h2>7. 출처</h2>
+<div class="src card">
+<ul>
+  <li>Amazon Reviews 2023 (Hou et al., 2024, UC San Diego McAuley Lab) 연구용 공개 데이터: <a href="https://amazon-reviews-2023.github.io/">amazon-reviews-2023.github.io</a> — 분석 원본은 이 저장소의 <code>reports/amazon-*</code> 폴더</li>
+  <li>라이너가 마르는 이유: <a href="https://www.magneticeyes.com.au/blogs/news/how-to-prevent-your-liquid-eyeliner-from-drying-out">Magnetic Eyes</a>, <a href="https://www.moxielash.com/blogs/support/clumpy-magnetic-liner-how-to-fix">Moxie Lash</a>, <a href="https://anticbeauty.com/why-is-my-eyeliner-drying-out/">anticbeauty</a> (브랜드·블로그 자료)</li>
+  <li>경쟁사: <a href="https://www.glamnetic.com/products/magnetic-liquid-eyeliner">Glamnetic 자석 라이너 (자사 페이지)</a>, <a href="https://thingtesting.com/brands/glamnetic/reviews">Thingtesting 리뷰 모음</a></li>
+  <li>시장 규모(추정치가 기관마다 크게 다름): <a href="https://www.marketresearchfuture.com/reports/magnetic-eyelashes-market-10682">Market Research Future</a>, <a href="https://www.techsciresearch.com/report/magnetic-eyelashes-market/28167.html">TechSci Research</a></li>
+  <li>미국 규제: <a href="https://argents.com/mocra-requirements-cosmetics-importers/">MoCRA 수입자 가이드</a>, <a href="https://globalcosmeticregs.com/guides/us/fda-facility-registration">FDA 시설 등록 가이드</a></li>
+  <li>한국 ODM: <a href="https://www.newstomato.com/readNewspaper.aspx?no=1057281">뉴스토마토 (MOQ 인하 추세)</a>, <a href="https://www.cosinkorea.com/news/article.html?no=54983">코스인코리아 (ODM 실적)</a>, <a href="https://www.cmq.kr/">CMQ (중소 ODM MOQ 예시)</a></li>
+  <li>국내 판매 예: <a href="https://www.coupang.com/vp/products/8592368623">쿠팡 자석속눈썹 상품 페이지</a></li>
+</ul>
+</div>
+<p class="meta" style="margin:24px 0 50px">이 보고서는 데이터 분석과 공개 자료를 바탕으로 한 출발점입니다. 투자나 사업 결정 전에는 위 검증 단계를 꼭 거치세요.</p>
+</div></body></html>
