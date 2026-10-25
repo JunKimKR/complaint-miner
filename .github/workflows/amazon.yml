@@ -13,6 +13,10 @@ on:
         description: "불만 주제까지 깊게 분석할 상위 상품 종류 수"
         required: false
         default: "5"
+      exclude:
+        description: "(선택) 상품명에 이 말이 있으면 제외, 쉼표로 여러 개 (예: human hair,wig)"
+        required: false
+        default: ""
       terms:
         description: "(선택) 특정 상품 종류만 깊게 분석, 쉼표로 여러 개 (예: hair oil,eye cream)"
         required: false
@@ -42,9 +46,11 @@ jobs:
           IN_CATEGORY: ${{ inputs.category }}
           IN_DEEP: ${{ inputs.deep }}
           IN_TERMS: ${{ inputs.terms }}
+          IN_EXCLUDE: ${{ inputs.exclude }}
         run: |
           args=()
           IFS=',' read -ra T <<< "$IN_TERMS"; for x in "${T[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--term "$x"); done
+          IFS=',' read -ra E <<< "$IN_EXCLUDE"; for x in "${E[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--exclude "$x"); done
           out="reports/amazon-$IN_CATEGORY-$(date -u +%Y%m%d-%H%M)"
           python -m miner amazon --category "$IN_CATEGORY" --deep "$IN_DEEP" --out-dir "$out" "${args[@]}"
       - name: 보고서 저장

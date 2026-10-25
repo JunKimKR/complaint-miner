@@ -109,10 +109,11 @@ def cmd_amazon(a):
     print(f"· 아마존 '{a.category}' 데이터 준비")
     rev = amazon.download("review", a.category, a.data_dir)
     meta_path = amazon.download("meta", a.category, a.data_dir)
-    products = amazon.load_products(meta_path)
+    products = amazon.load_products(meta_path, exclude=a.exclude)
     print(f"· 상품 {len(products):,}개 읽음. 상품 종류별 불만 비율 계산 중…")
     niches, meta = amazon.scan_niches(rev, products, min_reviews=a.min_reviews, top=a.niches)
     meta["category"] = a.category
+    meta["exclude"] = a.exclude or []
     if not niches:
         print("! 조건에 맞는 상품 종류가 없습니다. --min-reviews를 낮춰 보세요.")
         return 1
@@ -188,6 +189,7 @@ def main(argv=None):
     z.add_argument("--deep", type=int, default=5, help="불만 주제까지 분석할 상위 종류 수")
     z.add_argument("--term", action="append", help="이 상품 종류만 깊게 분석 (예: --term 'hair oil')")
     z.add_argument("--min-reviews", type=int, default=1500)
+    z.add_argument("--exclude", action="append", help="상품명에 이 말이 있으면 제외 (예: --exclude 'human hair' --exclude wig)")
     z.add_argument("--out-dir", default="reports/amazon")
     z.add_argument("--no-llm", action="store_true")
     z.set_defaults(fn=cmd_amazon)

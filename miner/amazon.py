@@ -88,20 +88,35 @@ class Niche:
     growth: float | None        # 최근 2년 불만 비중 ÷ 그 이전
     avg_price: float | None
     score: float = 0.0
+    similar: list | None = None     # 같은 묶음으로 합친 비슷한 이름들
+
+
+def _singular(w: str) -> str:
+    if len(w) > 4 and w.endswith(("shes", "ches", "xes", "sses")):
+        return w[:-2]                      # eyelashes→eyelash, brushes→brush
+    if len(w) > 4 and w.endswith("ies"):
+        return w[:-3] + "y"                # accessories→accessory
+    if len(w) > 3 and w.endswith("s") and not w.endswith(("ss", "us", "is")):
+        return w[:-1]
+    return w
 
 
 def _title_terms(title: str, store: str = "") -> set[str]:
     words = [w for w in re.findall(r"[a-z]+", title.lower()) if len(w) > 2]
     stop = _en_stop() | TITLE_STOP | set(re.findall(r"[a-z]+", store.lower()))   # 브랜드명은 상품 종류가 아니다
-    words = [w[:-1] if len(w) > 4 and w.endswith("s") and not w.endswith("ss") else w for w in words]
+    words = [_singular(w) for w in words]
     return {f"{a} {b}" for a, b in zip(words, words[1:]) if a not in stop and b not in stop}
 
 
-def load_products(meta_path: str) -> dict[str, dict]:
+def load_products(meta_path: str, exclude: list[str] | None = None) -> dict[str, dict]:
+    """exclude: 상품명에 이 말이 들어간 상품은 뺀다 (예: ['human hair', 'wig'])."""
+    ex = [e.lower() for e in (exclude or [])]
     out = {}
     for m in _iter_jsonl(meta_path):
         pid = m.get("parent_asin")
         if not pid or not m.get("title"):
+            continue
+        if ex and any(e in m["title"].lower() for e in ex):
             continue
         price = m.get("price")
         try:
@@ -144,6 +159,12 @@ def scan_niches(review_path: str, products: dict[str, dict], min_products: int =
                 s[2] += helpful
                 s[3] += recent
 
+    # 카테고리 전체의 불만 비율도 시간이 지나며 변한다. 니치의 추세는 그 평균과 비교해야 의미가 있다.
+    tot_rec = sum(1 for _, _, _, ts in rows if ts > cut)
+    tot_neg_rec = sum(1 for _, rt, _, ts in rows if ts > cut and rt is not None and rt <= 2)
+    tot_neg = sum(1 for _, rt, _, _ in rows if rt is not None and rt <= 2)
+    base_growth = ((tot_neg_rec + 1) / (tot_rec + 1)) / ((tot_neg - tot_neg_rec + 1) / (len(rows) - tot_rec + 1))
+
     niches = []
     for t, (n, neg, nh, neg_rec, all_rec, _) in stats.items():
         if n < min_reviews or neg < 50:
@@ -151,7 +172,7 @@ def scan_niches(review_path: str, products: dict[str, dict], min_products: int =
         old_all, old_neg = n - all_rec, neg - neg_rec
         growth = None
         if all_rec >= 200 and old_all >= 200:
-            growth = ((neg_rec + 1) / (all_rec + 1)) / ((old_neg + 1) / (old_all + 1))
+            growth = ((neg_rec + 1) / (all_rec + 1)) / ((old_neg + 1) / (old_all + 1)) / base_growth
         prices = [products[p]["price"] for p in term_products[t] if products[p]["price"]]
         niches.append(Niche(t, len(term_products[t]), n, neg, neg / n, nh / neg if neg else 0.0, growth,
                             sum(prices) / len(prices) if prices else None))
@@ -176,13 +197,16 @@ def scan_niches(review_path: str, products: dict[str, dict], min_products: int =
     for x in niches:
         if x.term in used:
             continue
-        group = [y for y in niches if y.term not in used and overlap(x.term, y.term) >= 0.6]
+        group = [y for y in niches if y.term not in used and
+                 (overlap(x.term, y.term) >= 0.6 or
+                  (set(x.term.split()) & set(y.term.split()) and overlap(x.term, y.term) >= 0.3))]
         best = max((y for y in group if y.score >= 0.9 * x.score), key=lambda y: generic(y.term))
         used.update(y.term for y in group)
+        best.similar = [y.term for y in group if y.term != best.term][:4]
         picked.append(best)
         if len(picked) == top:
             break
-    meta = {"last_date": datetime.fromtimestamp(last_ts / 1000, tz=timezone.utc).date().isoformat(),
+    meta = {"base_growth": base_growth, "last_date": datetime.fromtimestamp(last_ts / 1000, tz=timezone.utc).date().isoformat(),
             "n_reviews": len(rows), "n_products": len(products), "term_products": term_products}
     return picked, meta
 

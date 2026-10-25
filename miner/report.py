@@ -122,6 +122,8 @@ def write_niche_index(path: str, niches, meta: dict, links: dict[str, str]) -> N
         g = "–" if n.growth is None else (f'<b class="up">▲ ×{n.growth:.1f}</b>' if n.growth >= 1.15 else
                                           (f'▼ ×{n.growth:.1f}' if n.growth <= 0.87 else f'→ ×{n.growth:.1f}'))
         name = f'<a href="{links[n.term]}">{escape(n.term)}</a>' if n.term in links else escape(n.term)
+        if n.similar:
+            name += f'<br><small class="kw">비슷한 이름: {escape(", ".join(n.similar))}</small>'
         price = f"${n.avg_price:,.0f}" if n.avg_price else "–"
         rows.append(f"<tr><td>{i}</td><td class='nm'>{name}</td><td>{n.neg_share:.1%}</td><td>{n.reviews:,}</td>"
                     f"<td>{n.products:,}</td><td>{n.neg_helpful:.1f}</td><td>{g}</td><td>{price}</td><td><b>{n.score:.1f}</b></td></tr>")
@@ -132,9 +134,9 @@ td.nm,th.nm{text-align:left;white-space:normal;font-weight:700}.up{color:var(--a
 """
     html = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>불만 많은 상품 종류 순위</title><style>{css}</style></head><body><div class="wrap">
-<header><h1>불만 많은 상품 종류 순위</h1><p class="meta">아마존 공개 리뷰 데이터 · {escape(meta['category'])} · 리뷰 {meta['n_reviews']:,}개 · 상품 {meta['n_products']:,}개 · 데이터 마지막 날짜 {meta['last_date']}</p></header>
+<header><h1>불만 많은 상품 종류 순위</h1><p class="meta">아마존 공개 리뷰 데이터 · {escape(meta['category'])}{(' · 제외: ' + escape(', '.join(meta['exclude']))) if meta.get('exclude') else ''} · 리뷰 {meta['n_reviews']:,}개 · 상품 {meta['n_products']:,}개 · 데이터 마지막 날짜 {meta['last_date']}</p></header>
 <div class="card"><p>상품명에 함께 나오는 두 단어(예: <b>hair oil</b>, <b>eye cream</b>)를 '상품 종류'로 보고, 종류마다 별점 1~2점 리뷰 비율을 셌습니다.
-<b>점수 = 불만 비율 × 시장 크기(리뷰 수) × 공감 수 × 최근 2년 추세.</b> 이름을 누르면 그 종류의 불만 주제 분석이 열립니다(상위 몇 개만 분석).</p></div>
+<b>점수 = 불만 비율 × 시장 크기(리뷰 수) × 공감 수 × 최근 2년 추세.</b> 추세는 카테고리 전체 평균 대비이며, 1보다 크면 평균보다 불만이 빨리 늘고 있다는 뜻입니다. 이름을 누르면 그 종류의 불만 주제 분석이 열립니다(상위 몇 개만 분석).</p></div>
 <div class="tw"><table><tr><th>#</th><th class="nm">상품 종류</th><th>불만 비율</th><th>리뷰 수</th><th>상품 수</th><th>불만 공감</th><th>추세</th><th>평균가</th><th>점수</th></tr>
 {''.join(rows)}</table></div>
 <footer><ul><li>데이터는 2023년까지입니다. 지금 시장과 다를 수 있습니다.</li>
