@@ -16,6 +16,14 @@ on:
         description: "제품당 별점별 리뷰 수"
         required: false
         default: "40"
+      asins:
+        description: "(선택) 리뷰를 모을 상품 ASIN, 쉼표로 (베스트셀러 파일에 있는 것)"
+        required: false
+        default: ""
+      split:
+        description: "상품·별점마다 따로 실행 (무료 플랜이면 yes)"
+        required: false
+        default: "yes"
       bestsellers_json:
         description: "(선택) 전에 모은 베스트셀러 파일 경로 (다시 모으지 않아 비용 절약)"
         required: false
@@ -42,10 +50,14 @@ jobs:
           IN_N: ${{ inputs.n }}
           IN_PER_STAR: ${{ inputs.per_star }}
           IN_BEST: ${{ inputs.bestsellers_json }}
+          IN_ASINS: ${{ inputs.asins }}
+          IN_SPLIT: ${{ inputs.split }}
         run: |
           args=()
           IFS=',' read -ra O <<< "$IN_ONLY"; for x in "${O[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--only "$x"); done
           [ -n "$IN_BEST" ] && args+=(--bestsellers-json "$IN_BEST")
+          [ -n "$IN_ASINS" ] && args+=(--asin "$IN_ASINS")
+          [ "$IN_SPLIT" = "yes" ] && args+=(--split)
           python -m miner trends --n "$IN_N" --per-star "$IN_PER_STAR" --out-dir "reports/trends-$(date -u +%Y%m%d-%H%M)" "${args[@]}"
       - name: 보고서 저장
         if: always()

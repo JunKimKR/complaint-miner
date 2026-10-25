@@ -236,8 +236,15 @@ def cmd_trends(a):
         with open(os.path.join(a.out_dir, "bestsellers.json"), "w", encoding="utf-8") as f:
             json.dump(raw_best, f, ensure_ascii=False)
         print(f"  {len(products)}개")
-    picked = trends.pick_candidates(products, n=a.n, per_category=a.per_cat_pick,
-                                    min_reviews=a.min_reviews, max_stars=a.max_stars)
+    if a.asin:
+        want = [x.strip() for v in a.asin for x in v.split(",") if x.strip()]
+        by = {}
+        for p in products:
+            by.setdefault(p.asin, p)
+        picked = [by[x] for x in want if x in by]
+    else:
+        picked = trends.pick_candidates(products, n=a.n, per_category=a.per_cat_pick,
+                                        min_reviews=a.min_reviews, max_stars=a.max_stars)
     print(f"· 잘 팔리는데 별점이 낮은 제품 {len(picked)}개:")
     for p in picked:
         print(f"   [{p.category}] #{p.position} ★{p.stars} ({p.reviews:,}) {p.name[:60]}")
@@ -245,7 +252,10 @@ def cmd_trends(a):
         print("! 조건에 맞는 제품이 없습니다. --max-stars를 올리거나 --min-reviews를 낮춰 보세요.")
         return 1
 
-    reviews, raw_rev, _ = apify.fetch_amazon_reviews([p.url for p in picked], token, per_star=a.per_star)
+    if a.split:
+        reviews, raw_rev, _ = apify.fetch_split([p.url for p in picked], token, per_star=a.per_star)
+    else:
+        reviews, raw_rev, _ = apify.fetch_amazon_reviews([p.url for p in picked], token, per_star=a.per_star)
     with open(os.path.join(a.out_dir, "reviews_raw.json"), "w", encoding="utf-8") as f:
         json.dump(raw_rev, f, ensure_ascii=False)
     trends.attach_reviews(picked, [r for r in reviews if r.rating <= 2])
@@ -328,6 +338,8 @@ def main(argv=None):
     tr.add_argument("--max-stars", type=float, default=4.4)
     tr.add_argument("--per-star", type=int, default=50, help="제품당 별점별 리뷰 수")
     tr.add_argument("--bestsellers-json", help="전에 저장한 bestsellers.json을 다시 쓰기 (수집 비용 절약)")
+    tr.add_argument("--asin", action="append", help="베스트셀러 중 이 ASIN만 골라 리뷰 수집 (쉼표로 여러 개)")
+    tr.add_argument("--split", action="store_true", help="상품·별점마다 따로 실행 (무료 플랜 결과 수 제한 대응)")
     tr.add_argument("--out-dir", default="reports/trends")
     tr.set_defaults(fn=cmd_trends)
 

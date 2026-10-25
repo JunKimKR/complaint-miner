@@ -116,6 +116,26 @@ def parse_items(items: list[dict]) -> list[Review]:
     return out
 
 
+def fetch_split(urls: list[str], token: str, per_star: int = 100, actor: str = DEFAULT_ACTOR,
+                stars: tuple[str, ...] = ("oneStar", "twoStar")) -> tuple[list[Review], list[dict], dict]:
+    """상품·별점마다 따로 실행한다. 무료 플랜은 한 번 실행에 결과 수가 적게 묶이는 경우가 있어서,
+    나눠 돌리면 상품마다 고르게 모을 수 있다."""
+    reviews, raw = [], []
+    for u in urls:
+        for st in stars:
+            inp = {"productUrls": [{"url": u}], "maxReviews": per_star, "filterByRatings": [st]}
+            try:
+                items = run_actor(actor, inp, token)
+            except Exception as e:                 # 한 상품이 실패해도 나머지는 계속
+                print(f"  ! {u} {st}: {e}")
+                continue
+            got = parse_items(items)
+            print(f"  {u.split('/dp/')[-1][:10]} {st}: {len(got)}개")
+            reviews += got
+            raw += items
+    return reviews, raw, {"filterByRatings": list(stars), "split": True}
+
+
 def fetch_amazon_reviews(urls: list[str], token: str, per_star: int = 100,
                          actor: str = DEFAULT_ACTOR) -> tuple[list[Review], list[dict], dict]:
     """최신 리뷰를 모은다. 입력 형식이 도구 버전마다 조금 달라서 후보를 차례로 시도한다.
