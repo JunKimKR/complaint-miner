@@ -209,3 +209,45 @@ def test_seller_theme_detection():
     from miner.amazon import is_seller_theme
     assert is_seller_theme(["shipping", "arrived damaged", "package", "smell"])
     assert not is_seller_theme(["greasy", "smell", "heavy", "pump"])
+
+
+def test_apify_parse_variants():
+    """수집 도구마다 다른 출력 형식을 읽는지 (가짜 결과, 실제 호출 없음)."""
+    from miner.apify import parse_items
+    items = [
+        {"reviewTitle": "Dried out", "reviewDescription": "The liner tube was completely dried out.",
+         "ratingScore": 1, "date": "Reviewed in the United States on March 3, 2025",
+         "reviewReaction": "12 people found this helpful", "productTitle": "Magnetic Eyeliner Kit"},
+        {"title": "Meh", "text": "Lashes fall off after an hour", "rating": "2.0 out of 5 stars",
+         "reviewDate": "2026-01-15", "helpfulVotes": 3, "asin": "B0TEST"},
+        {"text": "no rating here"},
+    ]
+    got = parse_items(items)
+    assert len(got) == 2
+    assert got[0].rating == 1 and got[0].date == "2025-03-03" and got[0].likes == 12
+    assert got[0].text.startswith("Dried out.")
+    assert got[1].rating == 2 and got[1].date == "2026-01-15" and got[1].app == "B0TEST"
+
+
+def test_live_command_with_fake_apify(monkeypatch, tmp_path):
+    import json
+    from miner import apify
+    from miner.__main__ import main
+    reviews, _ = fake_reviews(n_per=30)
+    items = [{"reviewDescription": r.text, "ratingScore": r.rating, "date": r.date, "productTitle": r.app}
+             for r in reviews]
+    calls = []
+
+    def fake_run(actor, inp, token, max_wait=1800):
+        calls.append(inp)
+        return items
+
+    monkeypatch.setattr(apify, "run_actor", fake_run)
+    monkeypatch.setenv("APIFY_TOKEN", "test")
+    out = tmp_path / "live"
+    rc = main(["amazon-live", "--url", "https://www.amazon.com/dp/B0A, https://www.amazon.com/dp/B0B",
+               "--check", "연동=연동", "--out-dir", str(out)])
+    assert rc == 0 and (out / "report.html").exists()
+    assert calls[0]["productUrls"] == [{"url": "https://www.amazon.com/dp/B0A"}, {"url": "https://www.amazon.com/dp/B0B"}]
+    s = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+    assert s["checks"]["연동"]["hits"] > 0

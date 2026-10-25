@@ -58,6 +58,17 @@ python -m miner amazon --category All_Beauty --term "hair oil"   # 특정 종류
 GitHub에서는 Actions → **아마존 상품 불만 채굴** → Run workflow. 결과는 `reports/amazon-카테고리-날짜/index.html`.
 데이터는 2023년까지입니다. 큰 카테고리(Home_and_Kitchen 등)는 내려받는 데 오래 걸립니다.
 
+## 아마존 최신 리뷰 (Apify)
+
+공개 데이터는 2023년까지라서, 최신 리뷰는 Apify 수집 도구로 모읍니다. 무료 플랜(매달 5달러어치)으로 상품 5개 × 별점 1·2점 각 100개 정도는 충분합니다.
+
+1. apify.com 가입 → Settings → API & Integrations에서 API 토큰 복사
+2. 이 저장소 Settings → Secrets and variables → Actions → New repository secret: 이름 `APIFY_TOKEN`
+3. Actions → **아마존 최신 리뷰 분석** → Run workflow → 상품 주소를 쉼표로 넣기
+
+특정 불만의 비율도 셀 수 있습니다. 예: `말라있음=dried|dry|clump;안붙음=fall off|won't stay`
+결과: `reports/live-날짜/report.html`(불만 주제), `summary.json`(상품별 수치, 특정 불만 비율), `raw.json`(원본)
+
 ## 옵션
 
 | 옵션 | 뜻 |

@@ -1,0 +1,59 @@
+# Apify로 아마존 상품의 최신 리뷰를 모아 불만을 분석한다. (저장소 Secrets에 APIFY_TOKEN 필요)
+# Actions 탭 → "아마존 최신 리뷰 분석" → Run workflow
+name: 아마존 최신 리뷰 분석
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "아마존 상품 주소, 쉼표로 여러 개 (3~5개 추천)"
+        required: true
+      name:
+        description: "보고서 제목"
+        required: true
+        default: "아마존 최신 리뷰"
+      checks:
+        description: "(선택) 세고 싶은 불만, '이름=정규식'을 세미콜론(;)으로 구분"
+        required: false
+        default: ""
+      per_star:
+        description: "별점별 최대 리뷰 수 (최대 100)"
+        required: false
+        default: "100"
+
+permissions:
+  contents: write
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 수집과 분석
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          IN_URLS: ${{ inputs.urls }}
+          IN_NAME: ${{ inputs.name }}
+          IN_CHECKS: ${{ inputs.checks }}
+          IN_PER_STAR: ${{ inputs.per_star }}
+        run: |
+          args=()
+          IFS=';' read -ra C <<< "$IN_CHECKS"; for x in "${C[@]}"; do [ -n "$(echo "$x" | xargs)" ] && args+=(--check "$x"); done
+          out="reports/live-$(date -u +%Y%m%d-%H%M)"
+          python -m miner amazon-live --url "$IN_URLS" --name "$IN_NAME" --per-star "$IN_PER_STAR" --out-dir "$out" "${args[@]}"
+      - name: 보고서 저장
+        if: always()
+        env:
+          IN_NAME: ${{ inputs.name }}
+        run: |
+          git config user.name "complaint-miner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add reports || true
+          git commit -m "최신 리뷰 보고서: $IN_NAME" || echo "변경 없음"
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep $((i*5)); done

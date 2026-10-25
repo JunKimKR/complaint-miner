@@ -157,6 +157,62 @@ def cmd_amazon(a):
     return 0
 
 
+def cmd_live(a):
+    """Apify로 아마존 상품의 최신 리뷰를 모아 불만을 분석한다."""
+    import json
+    from . import apify
+    from .report import write_csv, write_html
+    token = os.environ.get("APIFY_TOKEN")
+    if not token:
+        print("! APIFY_TOKEN이 없습니다. GitHub 저장소 Settings → Secrets → Actions에 APIFY_TOKEN을 넣어 주세요.")
+        return 1
+    urls = [u.strip() for x in a.url for u in re.split(r"[,\s]+", x) if u.strip()]
+    if not urls:
+        print("! 상품 주소(--url)를 넣어 주세요.")
+        return 1
+    print(f"· 아마존 상품 {len(urls)}개의 최신 리뷰를 Apify로 모으는 중…")
+    reviews, raw, used = apify.fetch_amazon_reviews(urls, token, per_star=a.per_star, actor=a.actor)
+    os.makedirs(a.out_dir, exist_ok=True)
+    with open(os.path.join(a.out_dir, "raw.json"), "w", encoding="utf-8") as f:
+        json.dump({"input_used": {k: v for k, v in used.items() if k != "productUrls"}, "urls": urls,
+                   "items": raw}, f, ensure_ascii=False, indent=1)
+    print(f"  받은 결과 {len(raw):,}개, 읽은 리뷰 {len(reviews):,}개 (사용한 입력: {[k for k in used if k != 'productUrls']})")
+    if not reviews:
+        print("! 결과의 형식을 읽지 못했습니다. raw.json을 보고 필드 이름을 맞춰야 합니다.")
+        return 1
+
+    neg = [r for r in reviews if r.rating <= a.max_rating]
+    summary = {"urls": urls, "n_reviews": len(reviews), "n_negative": len(neg), "per_product": {}, "checks": {}}
+    for prod, cnt in Counter(r.app for r in reviews).items():
+        n_neg = sum(1 for r in neg if r.app == prod)
+        summary["per_product"][prod] = {"reviews": cnt, "negative": n_neg}
+    for chk in a.check or []:
+        label, _, pattern = chk.partition("=")
+        hits = [r for r in neg if re.search(pattern, r.text.lower())]
+        by_year = Counter(r.date[:4] for r in hits)
+        all_year = Counter(r.date[:4] for r in neg)
+        summary["checks"][label] = {"pattern": pattern, "hits": len(hits),
+                                    "share": round(len(hits) / len(neg), 3) if neg else 0,
+                                    "by_year": {y: [by_year[y], all_year[y]] for y in sorted(all_year)}}
+        print(f"  '{label}': 불만 {len(neg)}개 중 {len(hits)}개 ({len(hits) / max(len(neg), 1):.0%})")
+    with open(os.path.join(a.out_dir, "summary.json"), "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=1)
+
+    print(f"· 불만 리뷰(별점 {a.max_rating}점 이하) {len(neg):,}개 분석")
+    try:
+        themes = find_themes(neg, k_min=3, k_max=8)
+    except ValueError as e:
+        print(f"! {e}")
+        return 0
+    dates = sorted(r.date for r in neg)
+    meta = {"query": a.name or "아마존 최신 리뷰", "n_neg": len(neg), "n_all": len(reviews), "max_rating": a.max_rating,
+            "date_from": dates[0], "date_to": dates[-1], "apps": dict(Counter(r.app for r in neg).most_common(10))}
+    write_html(os.path.join(a.out_dir, "report.html"), themes, [], meta)
+    write_csv(os.path.join(a.out_dir, "reviews.csv"), themes)
+    print(f"보고서: {os.path.join(a.out_dir, 'report.html')}")
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="miner", description="불만 채굴기: 별점 낮은 리뷰에서 창업 기회를 찾는다")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -193,6 +249,16 @@ def main(argv=None):
     z.add_argument("--out-dir", default="reports/amazon")
     z.add_argument("--no-llm", action="store_true")
     z.set_defaults(fn=cmd_amazon)
+
+    lv = sub.add_parser("amazon-live", help="Apify로 아마존 상품의 최신 리뷰를 모아 분석 (APIFY_TOKEN 필요)")
+    lv.add_argument("--url", action="append", default=[], help="아마존 상품 주소 (여러 번, 또는 쉼표로 여러 개)")
+    lv.add_argument("--name", help="보고서 제목")
+    lv.add_argument("--per-star", type=int, default=100, help="별점별 최대 리뷰 수 (도구 한도 100)")
+    lv.add_argument("--max-rating", type=int, default=2)
+    lv.add_argument("--check", action="append", help="'이름=정규식' 형태로 불만 속 특정 문제 비율 세기")
+    lv.add_argument("--actor", default="junglee~amazon-reviews-scraper")
+    lv.add_argument("--out-dir", default="reports/live")
+    lv.set_defaults(fn=cmd_live)
 
     a = p.parse_args(argv)
     return a.fn(a)
