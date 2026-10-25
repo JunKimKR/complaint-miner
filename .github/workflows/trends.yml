@@ -1,0 +1,57 @@
+# 지금 잘 팔리는데 불만이 많은 아마존 제품을 찾는다. (Secrets에 APIFY_TOKEN 필요)
+name: 잘 팔리는데 불만 많은 제품 찾기
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "(선택) 이 분야만, 쉼표로 (뷰티 전체, 스킨케어, 헤어케어, 메이크업, 생활·건강, 반려동물, 주방·생활, 유아)"
+        required: false
+        default: ""
+      n:
+        description: "리뷰까지 볼 제품 수"
+        required: false
+        default: "10"
+      per_star:
+        description: "제품당 별점별 리뷰 수"
+        required: false
+        default: "40"
+      bestsellers_json:
+        description: "(선택) 전에 모은 베스트셀러 파일 경로 (다시 모으지 않아 비용 절약)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  trends:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 수집과 분석
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          IN_ONLY: ${{ inputs.only }}
+          IN_N: ${{ inputs.n }}
+          IN_PER_STAR: ${{ inputs.per_star }}
+          IN_BEST: ${{ inputs.bestsellers_json }}
+        run: |
+          args=()
+          IFS=',' read -ra O <<< "$IN_ONLY"; for x in "${O[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--only "$x"); done
+          [ -n "$IN_BEST" ] && args+=(--bestsellers-json "$IN_BEST")
+          python -m miner trends --n "$IN_N" --per-star "$IN_PER_STAR" --out-dir "reports/trends-$(date -u +%Y%m%d-%H%M)" "${args[@]}"
+      - name: 보고서 저장
+        if: always()
+        run: |
+          git config user.name "complaint-miner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add reports || true
+          git commit -m "트렌드 보고서" || echo "변경 없음"
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep $((i*5)); done

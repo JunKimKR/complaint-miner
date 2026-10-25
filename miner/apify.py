@@ -97,13 +97,15 @@ def _helpful(v) -> int:
 def parse_items(items: list[dict]) -> list[Review]:
     out = []
     for it in items:
+        if it.get("error"):                    # 리뷰가 없는 상품은 오류 항목만 온다
+            continue
         text = _first(it, "reviewDescription", "text", "reviewText", "body", "content", "review", "description")
         title = _first(it, "reviewTitle", "title", "headline")
         rating = _rating(_first(it, "ratingScore", "rating", "stars", "reviewRating", "score"))
         if not text or rating is None:
             continue
-        product = _first(it, "productTitle", "product_title", "productName", "asin", "productAsin", "input",
-                         "productUrl", "url") or "아마존 상품"
+        product = _first(it, "productAsin", "asin", "productOriginalAsin", "productTitle", "product_title",
+                         "productName", "input", "productUrl", "url") or "아마존 상품"
         if isinstance(product, dict):
             product = product.get("url") or "아마존 상품"
         full = (f"{title}. {text}" if title and title not in text else str(text)).strip()

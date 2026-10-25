@@ -213,6 +213,65 @@ def cmd_live(a):
     return 0
 
 
+def cmd_trends(a):
+    """지금 잘 팔리는데 불만이 많은 아마존 제품을 찾는다."""
+    import json
+    from . import apify, trends
+    from .report import write_trends
+    token = os.environ.get("APIFY_TOKEN")
+    if not token:
+        print("! APIFY_TOKEN이 없습니다.")
+        return 1
+    cats = dict(trends.DEFAULT_CATEGORIES)
+    if a.only:
+        cats = {k: v for k, v in cats.items() if k in a.only}
+    os.makedirs(a.out_dir, exist_ok=True)
+    if a.bestsellers_json:
+        raw_best = json.load(open(a.bestsellers_json, encoding="utf-8"))
+        products = trends.parse_bestsellers(raw_best, cats)
+        print(f"· 저장된 베스트셀러 {len(products)}개 사용")
+    else:
+        print(f"· 베스트셀러 수집: {', '.join(cats)}")
+        products, raw_best = trends.fetch_bestsellers(cats, token, per_category=a.per_category)
+        with open(os.path.join(a.out_dir, "bestsellers.json"), "w", encoding="utf-8") as f:
+            json.dump(raw_best, f, ensure_ascii=False)
+        print(f"  {len(products)}개")
+    picked = trends.pick_candidates(products, n=a.n, per_category=a.per_cat_pick,
+                                    min_reviews=a.min_reviews, max_stars=a.max_stars)
+    print(f"· 잘 팔리는데 별점이 낮은 제품 {len(picked)}개:")
+    for p in picked:
+        print(f"   [{p.category}] #{p.position} ★{p.stars} ({p.reviews:,}) {p.name[:60]}")
+    if not picked:
+        print("! 조건에 맞는 제품이 없습니다. --max-stars를 올리거나 --min-reviews를 낮춰 보세요.")
+        return 1
+
+    reviews, raw_rev, _ = apify.fetch_amazon_reviews([p.url for p in picked], token, per_star=a.per_star)
+    with open(os.path.join(a.out_dir, "reviews_raw.json"), "w", encoding="utf-8") as f:
+        json.dump(raw_rev, f, ensure_ascii=False)
+    trends.attach_reviews(picked, [r for r in reviews if r.rating <= 2])
+    print(f"· 불만 리뷰 {sum(len(p.negatives) for p in picked):,}개 수집")
+
+    results = []
+    for p in picked:
+        themes = []
+        if len(p.negatives) >= 25:
+            try:
+                themes = find_themes(p.negatives, k_min=2, k_max=5)
+            except ValueError:
+                themes = []
+        results.append((p, themes))
+    write_trends(os.path.join(a.out_dir, "index.html"), results, len(products), list(cats))
+    with open(os.path.join(a.out_dir, "trends.json"), "w", encoding="utf-8") as f:
+        json.dump([{"category": p.category, "name": p.name, "url": p.url, "asin": p.asin, "position": p.position,
+                    "stars": p.stars, "reviews": p.reviews, "price": p.price, "score": round(p.score, 2),
+                    "themes": [{"title": t.title, "share": round(t.share, 3), "n": len(t.reviews),
+                                "samples": [s.text[:300] for s in t.samples[:3]]} for t in th],
+                    "negatives": [{"rating": r.rating, "date": r.date, "likes": r.likes, "text": r.text[:600]}
+                                  for r in p.negatives]} for p, th in results], f, ensure_ascii=False, indent=1)
+    print(f"보고서: {os.path.join(a.out_dir, 'index.html')}")
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="miner", description="불만 채굴기: 별점 낮은 리뷰에서 창업 기회를 찾는다")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -259,6 +318,18 @@ def main(argv=None):
     lv.add_argument("--actor", default="junglee~amazon-reviews-scraper")
     lv.add_argument("--out-dir", default="reports/live")
     lv.set_defaults(fn=cmd_live)
+
+    tr = sub.add_parser("trends", help="지금 잘 팔리는데 불만이 많은 아마존 제품 찾기 (APIFY_TOKEN 필요)")
+    tr.add_argument("--only", action="append", help="이 분야만 (예: --only 스킨케어). 이름은 trends.DEFAULT_CATEGORIES")
+    tr.add_argument("--per-category", type=int, default=50, help="분야별 베스트셀러 수 (최대 100)")
+    tr.add_argument("--n", type=int, default=12, help="리뷰까지 볼 제품 수")
+    tr.add_argument("--per-cat-pick", type=int, default=3, help="분야별 최대 선택 수")
+    tr.add_argument("--min-reviews", type=int, default=300)
+    tr.add_argument("--max-stars", type=float, default=4.4)
+    tr.add_argument("--per-star", type=int, default=50, help="제품당 별점별 리뷰 수")
+    tr.add_argument("--bestsellers-json", help="전에 저장한 bestsellers.json을 다시 쓰기 (수집 비용 절약)")
+    tr.add_argument("--out-dir", default="reports/trends")
+    tr.set_defaults(fn=cmd_trends)
 
     a = p.parse_args(argv)
     return a.fn(a)

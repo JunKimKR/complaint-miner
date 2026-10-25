@@ -144,3 +144,30 @@ td.nm,th.nm{text-align:left;white-space:normal;font-weight:700}.up{color:var(--a
 <li>출처: Amazon Reviews 2023 (Hou et al., 2024), 연구용 공개 데이터.</li></ul></footer></div></body></html>"""
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
+
+
+def write_trends(path: str, results, n_products: int, categories: list[str]) -> None:
+    cards = []
+    for i, (p, themes) in enumerate(results, 1):
+        price = f"${p.price:,.2f}" if p.price else "–"
+        th = ""
+        for t in themes[:3]:
+            quotes = "".join(f"<blockquote>{escape(s.text[:260])}<br><small>★{s.rating} · {s.date}</small></blockquote>"
+                             for s in t.samples[:2])
+            th += f'<p><b>{escape(t.title)}</b> <span class="kw">불만의 {t.share:.0%}</span></p>{quotes}'
+        if not themes:
+            th = "".join(f"<blockquote>{escape(r.text[:260])}<br><small>★{r.rating} · {r.date}</small></blockquote>"
+                         for r in p.negatives[:3]) or '<p class="kw">수집된 불만 리뷰가 없습니다.</p>'
+        cards.append(f'''<div class="card"><h3><span class="rank">#{i}</span>{escape(p.name[:110])}</h3>
+<div class="chips"><span class="chip">{escape(p.category)}</span><span class="chip">베스트셀러 {p.position}위</span>
+<span class="chip hot">★{p.stars}</span><span class="chip">리뷰 {p.reviews:,}개</span><span class="chip">{price}</span>
+<span class="chip">모은 불만 {len(p.negatives)}개</span></div>
+<p class="kw"><a href="{escape(p.url)}">아마존에서 보기</a></p>{th}</div>''')
+    html = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>잘 팔리는데 불만 많은 제품</title><style>{CSS}</style></head><body><div class="wrap">
+<header><h1>지금 잘 팔리는데 불만 많은 제품</h1><p class="meta">아마존 베스트셀러 {n_products:,}개 중 선별 · 분야: {escape(", ".join(categories))} · {datetime.now():%Y-%m-%d} 수집</p></header>
+<div class="card"><p>베스트셀러 순위가 높고 리뷰가 많은데(=수요가 증명됨) 별점이 낮은(=고객이 불만족한) 제품을 골라, 최근 1~2점 리뷰를 모아 불만을 묶었습니다.</p></div>
+{''.join(cards)}
+<footer><ul><li>순위와 별점은 수집 시점 기준입니다.</li><li>불만이 크다고 돈을 내는 건 아닙니다. 검증 단계를 거치세요.</li></ul></footer></div></body></html>"""
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)

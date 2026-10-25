@@ -251,3 +251,37 @@ def test_live_command_with_fake_apify(monkeypatch, tmp_path):
     assert calls[0]["productUrls"] == [{"url": "https://www.amazon.com/dp/B0A"}, {"url": "https://www.amazon.com/dp/B0B"}]
     s = json.loads((out / "summary.json").read_text(encoding="utf-8"))
     assert s["checks"]["연동"]["hits"] > 0
+
+
+def test_trends_with_fake_apify(monkeypatch, tmp_path):
+    """베스트셀러 → 후보 선정 → 리뷰 수집 → 보고서 흐름 (가짜 결과, 실제 호출 없음)."""
+    import json
+    from miner import apify, trends
+    from miner.__main__ import main
+    cats = trends.DEFAULT_CATEGORIES
+    best = []
+    for ci, (c, u) in enumerate(list(cats.items())[:2]):
+        for pos in range(1, 21):
+            best.append({"categoryUrl": u, "position": pos, "name": f"{c} 상품 {pos}",
+                         "url": f"https://www.amazon.com/x/dp/B0{ci}{pos:07d}", "stars": 3.9 if pos % 4 == 0 else 4.7,
+                         "reviewsCount": 1000 + pos, "price": {"value": 19.99}})
+    reviews, _ = fake_reviews(n_per=15)
+
+    def fake_run(actor, inp, token, max_wait=1800):
+        if "bestsellers" in actor:
+            return best
+        urls = [x["url"] for x in inp["productUrls"]]
+        out = []
+        for i, r in enumerate(reviews):
+            asin = urls[i % len(urls)].split("/dp/")[1]
+            out.append({"productAsin": asin, "reviewDescription": r.text, "ratingScore": 1, "date": r.date})
+        return out
+
+    monkeypatch.setattr(apify, "run_actor", fake_run)
+    monkeypatch.setenv("APIFY_TOKEN", "test")
+    out = tmp_path / "tr"
+    assert main(["trends", "--n", "4", "--out-dir", str(out)]) == 0
+    data = json.loads((out / "trends.json").read_text(encoding="utf-8"))
+    assert len(data) == 4 and all(d["stars"] == 3.9 for d in data)
+    assert sum(len(d["negatives"]) for d in data) == len(reviews)
+    assert "잘 팔리는데 불만 많은 제품" in (out / "index.html").read_text(encoding="utf-8")
