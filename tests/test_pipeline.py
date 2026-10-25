@@ -1,6 +1,6 @@
 """파이프라인 테스트. 아래 리뷰는 테스트용으로 만든 가짜 문장이며 실제 데이터가 아니다."""
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from miner import sources
 from miner.analyze import find_themes
@@ -152,3 +152,60 @@ def test_llm_labels_and_merge(monkeypatch):
     assert len(hyps) == 1 and same_as == {ids[1]: ids[0]}
     assert themes[0].label == f"주제{ids[0]}"
     assert next(t for t in themes if t.id == ids[3]).extra["fixable"] is False
+
+
+def _fake_amazon(tmp_path):
+    """아마존 데이터 형식을 흉내 낸 가짜 파일 (테스트용, 실제 데이터 아님)."""
+    import json
+    rnd = random.Random(5)
+    meta, revs = [], []
+    kinds = {
+        "hair oil": ["greasy and heavy", "smell is too strong perfume", "pump broke and leaked", "made my hair frizzy dry"],
+        "eye cream": ["burned my eyes stinging", "no difference wrinkles", "tiny jar too expensive", "pilled under makeup"],
+        "lip balm": ["love it", "great moisture", "nice", "works well"],
+    }
+    pid = 0
+    for kind, complaints in kinds.items():
+        for i in range(20):
+            pid += 1
+            p = f"P{pid}"
+            title = f"Brand{i} {rnd.choice(['Argan', 'Rosemary', 'Vitamin', 'Jojoba', 'Coconut'])} {kind.title()} " \
+                    f"{rnd.choice(['for Dry Skin', 'Travel Size', 'Daily Care', 'Unscented', '2 Pack'])}"
+            meta.append({"parent_asin": p, "title": title, "price": 10 + i,
+                         "store": f"Brand{i}"})
+            for j in range(90):
+                bad = kind != "lip balm" and j % 3 == 0
+                text = rnd.choice(complaints) + " " + rnd.choice(["", "never again", "returned it", "disappointed"])
+                if kind == "hair oil" and j % 9 == 0:
+                    text = "package arrived damaged shipping took forever, seller refund"
+                ts = int(datetime(2021 + j % 3, 1 + j % 12, 1).timestamp() * 1000)
+                revs.append({"parent_asin": p, "rating": 1 if bad else 5, "title": "", "text": text,
+                             "timestamp": ts, "helpful_vote": j % 7})
+    d = tmp_path / "data"
+    d.mkdir()
+    (d / "Fake.jsonl").write_text("\n".join(json.dumps(r) for r in revs), encoding="utf-8")
+    (d / "meta_Fake.jsonl").write_text("\n".join(json.dumps(m) for m in meta), encoding="utf-8")
+    return d
+
+
+def test_amazon_niches_and_reports(tmp_path):
+    from datetime import datetime as _dt  # noqa: F401
+    from miner.__main__ import main
+    d = _fake_amazon(tmp_path)
+    out = tmp_path / "out"
+    rc = main(["amazon", "--category", "Fake", "--data-dir", str(d), "--min-reviews", "100", "--deep", "2",
+               "--out-dir", str(out), "--no-llm"])
+    assert rc == 0
+    idx = (out / "index.html").read_text(encoding="utf-8")
+    # 불만이 많은 두 종류가 순위에 있고, 불만 없는 lip balm은 없거나 아래에 있어야 한다
+    assert "hair oil" in idx and "eye cream" in idx
+    assert idx.find("hair oil") < idx.find("lip balm") if "lip balm" in idx else True
+    assert (out / "hair-oil.html").exists()
+    html = (out / "hair-oil.html").read_text(encoding="utf-8")
+    assert "배송·판매자 문제" in html
+
+
+def test_seller_theme_detection():
+    from miner.amazon import is_seller_theme
+    assert is_seller_theme(["shipping", "arrived damaged", "package", "smell"])
+    assert not is_seller_theme(["greasy", "smell", "heavy", "pump"])

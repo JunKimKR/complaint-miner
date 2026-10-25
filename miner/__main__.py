@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from collections import Counter
 
@@ -102,6 +103,59 @@ def cmd_run(a):
     return 0
 
 
+def cmd_amazon(a):
+    from . import amazon
+    from .report import write_csv, write_html, write_niche_index
+    print(f"· 아마존 '{a.category}' 데이터 준비")
+    rev = amazon.download("review", a.category, a.data_dir)
+    meta_path = amazon.download("meta", a.category, a.data_dir)
+    products = amazon.load_products(meta_path)
+    print(f"· 상품 {len(products):,}개 읽음. 상품 종류별 불만 비율 계산 중…")
+    niches, meta = amazon.scan_niches(rev, products, min_reviews=a.min_reviews, top=a.niches)
+    meta["category"] = a.category
+    if not niches:
+        print("! 조건에 맞는 상품 종류가 없습니다. --min-reviews를 낮춰 보세요.")
+        return 1
+    terms = a.term or [n.term for n in niches[:a.deep]]
+    os.makedirs(a.out_dir, exist_ok=True)
+    links = {}
+    use_llm = not a.no_llm and bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    for term in terms:
+        pids = meta["term_products"].get(term)
+        if not pids:
+            print(f"! '{term}'에 해당하는 상품이 없습니다.")
+            continue
+        reviews = amazon.niche_reviews(rev, products, pids)
+        print(f"· '{term}': 불만 리뷰 {len(reviews):,}개 분석")
+        try:
+            themes = find_themes(reviews, k_max=10)
+        except ValueError as e:
+            print(f"  ! {e}")
+            continue
+        hyps = []
+        if use_llm:
+            from .analyze import merge_themes, score_themes
+            from .llm import label_themes
+            hyps, same_as = label_themes(themes)
+            themes = merge_themes(themes, same_as) if same_as else themes
+            score_themes(themes)
+        slug = re.sub(r"[^a-z0-9]+", "-", term)
+        dates = sorted(r.date for r in reviews)
+        m = {"query": f"아마존 {a.category} · '{term}'", "n_neg": len(reviews), "n_all": next(n.reviews for n in niches if n.term == term) if any(n.term == term for n in niches) else len(reviews),
+             "max_rating": 2, "date_from": dates[0], "date_to": dates[-1],
+             "apps": dict(Counter(r.app for r in reviews).most_common(8))}
+        write_html(os.path.join(a.out_dir, f"{slug}.html"), themes, hyps, m)
+        write_csv(os.path.join(a.out_dir, f"{slug}.csv"), themes)
+        links[term] = f"{slug}.html"
+        for i, t in enumerate(themes[:3], 1):
+            print(f"    {i}. {t.title} ({t.share:.0%})")
+    write_niche_index(os.path.join(a.out_dir, "index.html"), niches, meta, links)
+    print(f"\n상품 종류 순위: {os.path.join(a.out_dir, 'index.html')}")
+    for i, n in enumerate(niches[:10], 1):
+        print(f"  {i:>2}. {n.term:<22} 불만 {n.neg_share:5.1%}  리뷰 {n.reviews:>7,}  점수 {n.score:.1f}")
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="miner", description="불만 채굴기: 별점 낮은 리뷰에서 창업 기회를 찾는다")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -125,6 +179,18 @@ def main(argv=None):
     r.add_argument("--llm", action="store_true", help="키 환경변수 없이도 Claude 호출 시도 (ant auth login 사용 시)")
     r.add_argument("--no-llm", action="store_true", help="Claude를 쓰지 않기")
     r.set_defaults(fn=cmd_run)
+
+    z = sub.add_parser("amazon", help="아마존 공개 리뷰로 불만 많은 상품 종류 찾기")
+    z.add_argument("--category", default="All_Beauty",
+                   help="카테고리 파일 이름 (예: All_Beauty, Health_and_Personal_Care, Baby_Products, Pet_Supplies)")
+    z.add_argument("--data-dir", default="data")
+    z.add_argument("--niches", type=int, default=20, help="순위에 보여줄 상품 종류 수")
+    z.add_argument("--deep", type=int, default=5, help="불만 주제까지 분석할 상위 종류 수")
+    z.add_argument("--term", action="append", help="이 상품 종류만 깊게 분석 (예: --term 'hair oil')")
+    z.add_argument("--min-reviews", type=int, default=1500)
+    z.add_argument("--out-dir", default="reports/amazon")
+    z.add_argument("--no-llm", action="store_true")
+    z.set_defaults(fn=cmd_amazon)
 
     a = p.parse_args(argv)
     return a.fn(a)

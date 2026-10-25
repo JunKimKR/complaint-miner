@@ -1,4 +1,4 @@
-"""한국어 리뷰를 의미 있는 단어로 쪼갠다."""
+"""리뷰를 의미 있는 단어로 쪼갠다. 한국어는 형태소 분석(Kiwi), 영어는 단순 규칙."""
 from __future__ import annotations
 
 import re
@@ -22,7 +22,49 @@ def _kiwi():
     return Kiwi()
 
 
+_HANGUL = re.compile(r"[가-힣]")
+_EN_WORD = re.compile(r"[a-z]+(?:'[a-z]+)?")
+EN_NEG = {"not", "no", "never", "nothing", "don't", "doesn't", "didn't", "won't", "can't", "isn't", "wasn't"}
+EN_STOP = None
+EN_EXTRA_STOP = {"product", "products", "item", "really", "just", "like", "use", "used", "using", "get", "got",
+                 "buy", "bought", "one", "would", "also", "even", "will", "much", "very", "well", "amazon",
+                 "it's", "i'm", "i've", "it", "this", "that", "they", "them"}
+
+
+def _en_stop():
+    global EN_STOP
+    if EN_STOP is None:
+        from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+        EN_STOP = (set(ENGLISH_STOP_WORDS) | EN_EXTRA_STOP) - EN_NEG
+    return EN_STOP
+
+
+def _en_norm(w: str) -> str:
+    # 아주 단순한 복수형 정리: bottles→bottle, smells→smell (ss로 끝나는 말은 그대로)
+    if len(w) > 4 and w.endswith("s") and not w.endswith("ss"):
+        return w[:-1]
+    return w
+
+
+def tokenize_en(text: str) -> list[str]:
+    stop = _en_stop()
+    out: list[str] = []
+    neg = False
+    for w in _EN_WORD.findall(text.lower()):
+        if w in EN_NEG:
+            neg = True
+            continue
+        if len(w) < 3 or w in stop:
+            continue
+        w = _en_norm(w)
+        out.append("not_" + w if neg else w)   # "doesn't work" → not_work
+        neg = False
+    return out
+
+
 def tokenize(text: str) -> list[str]:
+    if len(_HANGUL.findall(text)) < max(2, len(text) * 0.1):
+        return tokenize_en(text)
     text = re.sub(r"\s+", " ", text)
     toks = _kiwi().tokenize(text)
     out: list[str] = []

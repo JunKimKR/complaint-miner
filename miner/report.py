@@ -76,6 +76,8 @@ def write_html(path: str, themes: list[Theme], hypotheses: list[dict], meta: dic
                  f'<span class="chip">평균 공감 {t.avg_likes:.1f}</span>', _growth_chip(t.growth)]
         if multi:
             chips.append(f'<span class="chip{" hot" if t.cross_app > 1 else ""}">{t.cross_app}개 앱 공통</span>')
+        if t.extra.get("seller"):
+            chips.append('<span class="chip">배송·판매자 문제 (상품 자체 문제 아님)</span>')
         if t.extra.get("fixable") is False:
             chips.append('<span class="chip">기존 앱의 문제 (새 회사가 끼어들 틈 적음)</span>')
         h.append(f'<div class="card"><h3><span class="rank">#{i}</span>{escape(t.title)}</h3>'
@@ -112,3 +114,31 @@ def write_csv(path: str, themes: list[Theme]) -> None:
         for i, t in enumerate(themes, 1):
             for r in t.reviews:
                 w.writerow([i, t.title, r.app, r.source, r.rating, r.likes, r.date, r.text])
+
+
+def write_niche_index(path: str, niches, meta: dict, links: dict[str, str]) -> None:
+    rows = []
+    for i, n in enumerate(niches, 1):
+        g = "–" if n.growth is None else (f'<b class="up">▲ ×{n.growth:.1f}</b>' if n.growth >= 1.15 else
+                                          (f'▼ ×{n.growth:.1f}' if n.growth <= 0.87 else f'→ ×{n.growth:.1f}'))
+        name = f'<a href="{links[n.term]}">{escape(n.term)}</a>' if n.term in links else escape(n.term)
+        price = f"${n.avg_price:,.0f}" if n.avg_price else "–"
+        rows.append(f"<tr><td>{i}</td><td class='nm'>{name}</td><td>{n.neg_share:.1%}</td><td>{n.reviews:,}</td>"
+                    f"<td>{n.products:,}</td><td>{n.neg_helpful:.1f}</td><td>{g}</td><td>{price}</td><td><b>{n.score:.1f}</b></td></tr>")
+    css = CSS + """
+table{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--paper);border-radius:14px;overflow:hidden}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th{background:var(--bg);font-size:12.5px;color:var(--muted)}
+td.nm,th.nm{text-align:left;white-space:normal;font-weight:700}.up{color:var(--accent)}.tw{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+"""
+    html = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>불만 많은 상품 종류 순위</title><style>{css}</style></head><body><div class="wrap">
+<header><h1>불만 많은 상품 종류 순위</h1><p class="meta">아마존 공개 리뷰 데이터 · {escape(meta['category'])} · 리뷰 {meta['n_reviews']:,}개 · 상품 {meta['n_products']:,}개 · 데이터 마지막 날짜 {meta['last_date']}</p></header>
+<div class="card"><p>상품명에 함께 나오는 두 단어(예: <b>hair oil</b>, <b>eye cream</b>)를 '상품 종류'로 보고, 종류마다 별점 1~2점 리뷰 비율을 셌습니다.
+<b>점수 = 불만 비율 × 시장 크기(리뷰 수) × 공감 수 × 최근 2년 추세.</b> 이름을 누르면 그 종류의 불만 주제 분석이 열립니다(상위 몇 개만 분석).</p></div>
+<div class="tw"><table><tr><th>#</th><th class="nm">상품 종류</th><th>불만 비율</th><th>리뷰 수</th><th>상품 수</th><th>불만 공감</th><th>추세</th><th>평균가</th><th>점수</th></tr>
+{''.join(rows)}</table></div>
+<footer><ul><li>데이터는 2023년까지입니다. 지금 시장과 다를 수 있습니다.</li>
+<li>불만 비율이 높다고 시장 기회가 큰 건 아닙니다. 원래 만족시키기 어려운 상품(예: 탈모, 여드름)은 비율이 늘 높습니다.</li>
+<li>출처: Amazon Reviews 2023 (Hou et al., 2024), 연구용 공개 데이터.</li></ul></footer></div></body></html>"""
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)

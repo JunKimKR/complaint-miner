@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import re
+import warnings
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -14,10 +15,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import Normalizer
 
+from .amazon import is_seller_theme
 from .sources import Review
 from .textproc import tokenize
 
 RECENT_DAYS = 90
+warnings.filterwarnings("ignore", message="Number of distinct clusters")
 
 
 @dataclass
@@ -56,7 +59,11 @@ def _pick_k(X: np.ndarray, n: int, k_min: int, k_max: int, seed: int) -> int:
     scores = {}
     for k in range(k_min, k_max + 1):
         labels = KMeans(n_clusters=k, n_init=10, random_state=seed).fit_predict(X)
+        if len(set(labels)) < 2:            # 거의 같은 리뷰만 있으면 나눌 수 없다
+            continue
         scores[k] = silhouette_score(X, labels, sample_size=min(2000, n), random_state=seed)
+    if not scores:
+        return k_min
     best = max(scores.values())
     return min(k for k, s in scores.items() if s >= 0.9 * best)
 
@@ -71,6 +78,8 @@ def _split_big(X: np.ndarray, labels: np.ndarray, n: int, seed: int, max_share: 
             continue
         sub_k = _pick_k(X[idx], len(idx), 2, 6, seed)
         sub = KMeans(n_clusters=sub_k, n_init=10, random_state=seed).fit_predict(X[idx])
+        if len(set(sub)) < 2:
+            continue
         for j in range(1, sub_k):
             labels[idx[sub == j]] = next_id
             next_id += 1
@@ -158,6 +167,9 @@ def score_themes(themes: list[Theme]) -> None:
                   ((1 + 0.25 * (t.cross_app - 1)) if multi and t.cross_app > 1 else 1.0)
         if t.extra.get("fixable") is False:
             t.score *= 0.5           # 기존 앱의 버그·정책 문제는 새 회사가 끼어들 틈이 적다
+        if is_seller_theme(t.keywords):
+            t.extra["seller"] = True
+            t.score *= 0.3           # 배송·포장·판매자 문제는 상품을 바꿔도 해결되지 않는다
     themes.sort(key=lambda t: -t.score)
 
 

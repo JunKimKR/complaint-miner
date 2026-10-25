@@ -45,6 +45,19 @@ export ANTHROPIC_API_KEY=sk-ant-...      # Windows PowerShell: $env:ANTHROPIC_AP
 
 Claude 정리까지 원하면 **Settings → Secrets and variables → Actions**에 `ANTHROPIC_API_KEY`를 추가하세요.
 
+## 아마존 상품 분석 (온라인 판매 상품 아이디어)
+
+아마존 공개 리뷰 데이터(Amazon Reviews 2023, 연구용 공개)로 **불만이 많은 상품 종류 순위**를 매기고, 상위 종류마다 불만 주제를 분석합니다. 배송·포장·판매자 불만은 상품 자체 문제가 아니므로 점수를 낮춥니다.
+
+```bash
+python -m miner amazon --category All_Beauty            # 화장품
+python -m miner amazon --category Pet_Supplies --deep 3  # 반려동물
+python -m miner amazon --category All_Beauty --term "hair oil"   # 특정 종류만 깊게
+```
+
+GitHub에서는 Actions → **아마존 상품 불만 채굴** → Run workflow. 결과는 `reports/amazon-카테고리-날짜/index.html`.
+데이터는 2023년까지입니다. 큰 카테고리(Home_and_Kitchen 등)는 내려받는 데 오래 걸립니다.
+
 ## 옵션
 
 | 옵션 | 뜻 |

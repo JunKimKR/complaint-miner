@@ -1,0 +1,58 @@
+# 아마존 공개 리뷰 데이터로 '불만 많은 상품 종류'를 찾는다.
+# Actions 탭 → "아마존 상품 불만 채굴" → Run workflow
+name: 아마존 상품 불만 채굴
+
+on:
+  workflow_dispatch:
+    inputs:
+      category:
+        description: "카테고리 (All_Beauty, Health_and_Personal_Care, Baby_Products, Pet_Supplies, Appliances, Home_and_Kitchen 등)"
+        required: true
+        default: All_Beauty
+      deep:
+        description: "불만 주제까지 깊게 분석할 상위 상품 종류 수"
+        required: false
+        default: "5"
+      terms:
+        description: "(선택) 특정 상품 종류만 깊게 분석, 쉼표로 여러 개 (예: hair oil,eye cream)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  amazon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: amazon-${{ inputs.category }}-v1
+      - name: 분석
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          IN_CATEGORY: ${{ inputs.category }}
+          IN_DEEP: ${{ inputs.deep }}
+          IN_TERMS: ${{ inputs.terms }}
+        run: |
+          args=()
+          IFS=',' read -ra T <<< "$IN_TERMS"; for x in "${T[@]}"; do x="$(echo "$x" | xargs)"; [ -n "$x" ] && args+=(--term "$x"); done
+          out="reports/amazon-$IN_CATEGORY-$(date -u +%Y%m%d-%H%M)"
+          python -m miner amazon --category "$IN_CATEGORY" --deep "$IN_DEEP" --out-dir "$out" "${args[@]}"
+      - name: 보고서 저장
+        env:
+          IN_CATEGORY: ${{ inputs.category }}
+        run: |
+          git config user.name "complaint-miner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add reports
+          git commit -m "아마존 보고서: $IN_CATEGORY" || echo "변경 없음"
+          git push
