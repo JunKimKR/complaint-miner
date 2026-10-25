@@ -61,4 +61,4 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add reports
           git commit -m "아마존 보고서: $IN_CATEGORY" || echo "변경 없음"
-          git push
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep $((i*5)); done
