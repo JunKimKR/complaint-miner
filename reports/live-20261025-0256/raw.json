@@ -1,0 +1,40 @@
+{
+ "input_used": {
+  "maxReviews": 100,
+  "filterByRatings": [
+   "oneStar",
+   "twoStar"
+  ]
+ },
+ "urls": [
+  "https://www.amazon.com/Kiss-Magnetic-Eyeliner-Eyelash-Lure/dp/B08P3W7M5K"
+ ],
+ "items": [
+  {
+   "error": "no_relevant_reviews_found",
+   "errorDescription": "No relevant reviews found, saving only review category data...",
+   "input": "https://www.amazon.com/Kiss-Magnetic-Eyeliner-Eyelash-Lure/dp/B08P3W7M5K",
+   "totalCategoryRatings": 4,
+   "totalCategoryReviews": 0,
+   "reviewCategoryUrl": "https://www.amazon.com/product-reviews/B08P3W7M5K?pageNumber=1&filterByStar=two_star&sortBy=helpful&formatType=all_formats&asin=B08P3W7M5K&reftag=cm_cr_arp_d_paging_btm_next_1&scope=reviewsAjax0",
+   "filterByRating": "twoStar",
+   "filterByKeyword": null,
+   "productAsin": "B08P3W7M5K",
+   "productOriginalAsin": "B08P3W7M5K",
+   "variantAsin": "B08P3W7M5K"
+  },
+  {
+   "error": "no_relevant_reviews_found",
+   "errorDescription": "No relevant reviews found, saving only review category data...",
+   "input": "https://www.amazon.com/Kiss-Magnetic-Eyeliner-Eyelash-Lure/dp/B08P3W7M5K",
+   "totalCategoryRatings": 4,
+   "totalCategoryReviews": 0,
+   "reviewCategoryUrl": "https://www.amazon.com/product-reviews/B08P3W7M5K?pageNumber=1&filterByStar=one_star&sortBy=helpful&formatType=all_formats&asin=B08P3W7M5K&reftag=cm_cr_arp_d_paging_btm_next_1&scope=reviewsAjax0",
+   "filterByRating": "oneStar",
+   "filterByKeyword": null,
+   "productAsin": "B08P3W7M5K",
+   "productOriginalAsin": "B08P3W7M5K",
+   "variantAsin": "B08P3W7M5K"
+  }
+ ]
+}
