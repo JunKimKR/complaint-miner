@@ -111,7 +111,8 @@ def _title_terms(title: str, store: str = "") -> set[str]:
 def load_products(meta_path: str, exclude: list[str] | None = None) -> dict[str, dict]:
     """exclude: 상품명에 이 말이 들어간 상품은 뺀다 (예: ['human hair', 'wig'])."""
     ex = [e.lower() for e in (exclude or [])]
-    out = {}
+    raw = []
+    title_cnt, store_cnt = Counter(), Counter()
     for m in _iter_jsonl(meta_path):
         pid = m.get("parent_asin")
         if not pid or not m.get("title"):
@@ -123,8 +124,16 @@ def load_products(meta_path: str, exclude: list[str] | None = None) -> dict[str,
             price = float(price) if price not in (None, "", "None") else None
         except (TypeError, ValueError):
             price = None
-        out[pid] = {"title": m["title"], "price": price, "store": m.get("store") or "",
-                    "terms": _title_terms(m["title"], m.get("store") or "")}
+        store = m.get("store") or ""
+        raw.append((pid, m["title"], price, store))
+        title_cnt.update(set(re.findall(r"[a-z]+", m["title"].lower())))
+        store_cnt.update(set(re.findall(r"[a-z]+", store.lower())))
+    # 판매자 이름에 자주 나오는 말은 브랜드다 (예: philips, norelco). 상품 종류 이름에서 뺀다.
+    brands = {w for w, c in store_cnt.items() if c >= 3 and c / max(title_cnt[w], 1) >= 0.2}
+    out = {}
+    for pid, title, price, store in raw:
+        terms = {t for t in _title_terms(title, store) if not (set(t.split()) & brands)}
+        out[pid] = {"title": title, "price": price, "store": store, "terms": terms}
     return out
 
 
